@@ -24,6 +24,7 @@
 #include "geo_parquet.hpp"
 #include "writer/parquet_write_stats.hpp"
 #include "thrift/protocol/TCompactProtocol.h"
+#include "custom_bloom_filters.hpp"
 
 namespace duckdb {
 class FileSystem;
@@ -83,7 +84,8 @@ public:
 	              const vector<pair<string, string>> &kv_metadata,
 	              shared_ptr<ParquetEncryptionConfig> encryption_config, idx_t dictionary_size_limit,
 	              idx_t string_dictionary_page_size_limit, double bloom_filter_false_positive_ratio,
-	              int64_t compression_level, bool debug_use_openssl, ParquetVersion parquet_version);
+	              int64_t compression_level, bool debug_use_openssl, ParquetVersion parquet_version,
+	              BloomFilterType bloom_filter_type);
 	~ParquetWriter();
 
 public:

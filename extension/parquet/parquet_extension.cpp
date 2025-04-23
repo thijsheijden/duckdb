@@ -14,6 +14,7 @@
 #include "parquet_metadata.hpp"
 #include "parquet_reader.hpp"
 #include "parquet_writer.hpp"
+#include "custom_bloom_filters.hpp"
 #include "reader/struct_column_reader.hpp"
 #include "zstd_file_system.hpp"
 #include "writer/primitive_column_writer.hpp"
@@ -783,6 +784,9 @@ struct ParquetWriteBindData : public TableFunctionData {
 
 	//! Which encodings to include when writing
 	ParquetVersion parquet_version = ParquetVersion::V1;
+
+	//! Which type of bloom filter to add
+	BloomFilterType bloom_filter_type = BloomFilterType::REGULAR;
 };
 
 struct ParquetWriteGlobalState : public GlobalFunctionData {
@@ -937,6 +941,15 @@ unique_ptr<FunctionData> ParquetWriteBind(ClientContext &context, CopyFunctionBi
 			} else {
 				throw BinderException("Expected parquet_version 'V1' or 'V2'");
 			}
+		} else if (loption == "bloom_filter_type") {
+			const auto roption = StringUtil::Lower(option.second[0].ToString());
+			if (roption == "regular") {
+				bind_data->bloom_filter_type = BloomFilterType::REGULAR;
+			} else if (roption == "encrypted_ranges") {
+				bind_data->bloom_filter_type = BloomFilterType::ENCRYPTED_RANGES;
+			} else {
+				throw BinderException("Expected bloom filter type 'default' or 'encrypted_ranges'");
+			}
 		} else {
 			throw NotImplementedException("Unrecognized option for PARQUET: %s", option.first.c_str());
 		}
@@ -968,7 +981,7 @@ unique_ptr<GlobalFunctionData> ParquetWriteInitializeGlobal(ClientContext &conte
 	    parquet_bind.field_ids.Copy(), parquet_bind.kv_metadata, parquet_bind.encryption_config,
 	    parquet_bind.dictionary_size_limit, parquet_bind.string_dictionary_page_size_limit,
 	    parquet_bind.bloom_filter_false_positive_ratio, parquet_bind.compression_level, parquet_bind.debug_use_openssl,
-	    parquet_bind.parquet_version);
+	    parquet_bind.parquet_version, parquet_bind.bloom_filter_type);
 	return std::move(global_state);
 }
 
