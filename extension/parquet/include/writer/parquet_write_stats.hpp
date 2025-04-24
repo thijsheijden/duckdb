@@ -66,6 +66,15 @@ public:
 	string GetMaxValue() override {
 		return HasStats() ? string(char_ptr_cast(&max), sizeof(T)) : string();
 	}
+
+	// Methods that return the unencoded min and max values
+	T GetMinT() {
+		return min;
+	}
+
+	T GetMaxT() {
+		return max;
+	}
 };
 
 template <class SRC, class T, class OP>

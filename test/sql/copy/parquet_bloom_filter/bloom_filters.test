@@ -4,6 +4,12 @@
 require parquet
 
 statement ok
+COPY (
+  SELECT i::UBIGINT
+  FROM range(100) tbl(i)
+) TO '__TEST_DIR__/bloom1.parquet' (FORMAT parquet, ROW_GROUP_SIZE 10000, BLOOM_FILTER_TYPE encrypted_ranges);
+
+statement ok
 copy (select
     (r1.range*10)::BIGINT r,
     r::smallint r_int16,

@@ -76,6 +76,7 @@ if(AMALGAMATION_BUILD)
 
   add_library(duckdb_static STATIC
               "${PROJECT_SOURCE_DIR}/src/amalgamation/duckdb.cpp")
+  link_BF_EDS_NC_Lib(duckdb_static PUBLIC)
   target_link_libraries(duckdb_static ${DUCKDB_SYSTEM_LIBS})
   link_threads(duckdb_static PUBLIC)
   link_extension_libraries(duckdb_static PUBLIC)
@@ -149,6 +150,7 @@ else()
   link_extension_libraries(duckdb PRIVATE)
 
   add_library(duckdb_static STATIC ${ALL_OBJECT_FILES})
+  link_BF_EDS_NC_Lib(duckdb_static PUBLIC)
   target_link_libraries(duckdb_static PUBLIC ${DUCKDB_LINK_LIBS})
   link_threads(duckdb_static PUBLIC)
   link_extension_libraries(duckdb_static PUBLIC)

@@ -15,6 +15,9 @@
 #include "parquet_rle_bp_encoder.hpp"
 #include "duckdb/common/primitive_dictionary.hpp"
 
+#include "BF_EDS_NC/include/query_manager.hpp"
+#include "BF_EDS_NC/include/bloom_filter/256_bit_blocked_bloom_filter.hpp"
+
 namespace duckdb {
 
 template <class SRC, class TGT, class OP = ParquetCastOperator, bool ALL_VALID>
@@ -280,10 +283,39 @@ public:
 		}
 	}
 
-	void FlushDictionary(PrimitiveColumnWriterState &state_p, ColumnWriterStatistics *stats) override {
-		auto &state = state_p.Cast<StandardColumnWriterState<SRC, TGT, OP>>();
-		D_ASSERT(state.encoding == duckdb_parquet::Encoding::RLE_DICTIONARY);
+	//===----------------------------------------------------------------------===//
+	//                         DuckDB
+	//
+	// BF_EDS_NC code.
+	//
+	//
+	//===----------------------------------------------------------------------===//
 
+	binary_interval_trees::range<uint64_t> convertMinMaxStatsToRange(BF_EDS_NC::QueryManager *qm, ColumnWriterStatistics *stats, PhysicalType colType) {
+		switch (colType) {
+		case PhysicalType::UINT64: {
+			auto b = dynamic_cast<NumericStatisticsState<uint64_t, uint64_t, BaseParquetOperator>*>(stats);
+			return {b->GetMinT(), b->GetMaxT()};
+		}
+		case PhysicalType::INT64: {
+			auto b = dynamic_cast<NumericStatisticsState<int64_t, int64_t, BaseParquetOperator>*>(stats);
+			return qm->MapRangeToUint64Range<int64_t>({b->GetMinT(), b->GetMaxT()});
+		}
+		case PhysicalType::VARCHAR: {
+			auto b = dynamic_cast<StringStatisticsState*>(stats);
+			return qm->MapRangeToUint64Range<string>({b->GetMinValue(), b->GetMaxValue()});
+		}
+		}
+
+		// By default return entire range
+		return {0, LLONG_MAX};
+	}
+
+	template<BloomFilterType BT>
+	void CreateBloomFilter(StandardColumnWriterState<SRC, TGT, OP> &state, ColumnWriterStatistics *stats) {}
+
+	template<>
+	void CreateBloomFilter<BloomFilterType::REGULAR>(StandardColumnWriterState<SRC, TGT, OP> &state, ColumnWriterStatistics *stats) {
 		state.bloom_filter =
 		    make_uniq<ParquetBloomFilter>(state.dictionary.GetSize(), writer.BloomFilterFalsePositiveRatio());
 
@@ -294,6 +326,50 @@ public:
 			auto hash = OP::template XXHash64<SRC, TGT>(tgt_value);
 			state.bloom_filter->FilterInsert(hash);
 		});
+	}
+
+	template<>
+	void CreateBloomFilter<BloomFilterType::ENCRYPTED_RANGES>(StandardColumnWriterState<SRC, TGT, OP> &state, ColumnWriterStatistics *stats) {
+		// Use the HandleStats method to track the Parquet row-group min and max values
+		state.dictionary.IterateValues([&](const SRC &src_value, const TGT &tgt_value) {
+			// update the statistics
+			OP::template HandleStats<SRC, TGT>(stats, tgt_value);
+			//			// update the bloom filter
+			//			auto hash = OP::template XXHash64<SRC, TGT>(tgt_value);
+			//			state.bloom_filter->FilterInsert(hash);
+		});
+
+
+		// Insert these two values into a Parquet blocked bloom filter using our library
+		BF_EDS_NC::QueryManager qm(ULONG_MAX);
+		qm.GenerateKeys(64);
+		auto r = convertMinMaxStatsToRange(&qm, stats, this->Schema().type.InternalType());
+		auto EBF = qm.CreateEBF<bloom_filters::BLOCKED_PARQUET>(10, r);
+		auto BBF = reinterpret_cast<bloom_filters::BlockedBloomFilterParquet*>(EBF.get());
+
+		// Somehow copy over the bloom filter bitset
+		// Retrieve the bitset from the bloom filter and convert to a ResizableBuffer, which appears to be a uint8_t array
+		// which buffer.ptr points to the first element
+
+		// Create a new resizeable buffer with the size of our created bloom filter bitset
+		auto bitsetBuffer = make_uniq<ResizeableBuffer>(Allocator::DefaultAllocator(), sizeof(ParquetBloomBlock) * BBF->numBlocks);
+		bitsetBuffer->zero();
+
+		// Copy our bitset data into the resizeable buffer
+		memcpy(bitsetBuffer->ptr, &BBF->blocks[0], sizeof(ParquetBloomBlock) * BBF->numBlocks);
+
+		state.bloom_filter = make_uniq<ParquetBloomFilter>(std::move(bitsetBuffer));
+	}
+
+	void FlushDictionary(PrimitiveColumnWriterState &state_p, ColumnWriterStatistics *stats) override {
+		auto &state = state_p.Cast<StandardColumnWriterState<SRC, TGT, OP>>();
+		D_ASSERT(state.encoding == duckdb_parquet::Encoding::RLE_DICTIONARY);
+
+		if (this->writer.GetBloomFilterType() == BloomFilterType::REGULAR) {
+			this->CreateBloomFilter<BloomFilterType::REGULAR>(state, stats);
+		} else if (this->writer.GetBloomFilterType() == BloomFilterType::ENCRYPTED_RANGES) {
+			this->CreateBloomFilter<BloomFilterType::ENCRYPTED_RANGES>(state, stats);
+		}
 
 		// flush the dictionary page and add it to the to-be-written pages
 		WriteDictionary(state, state.dictionary.GetTargetMemoryStream(), state.dictionary.GetSize());

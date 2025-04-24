@@ -136,6 +136,9 @@ public:
 	ParquetVersion GetParquetVersion() const {
 		return parquet_version;
 	}
+	BloomFilterType GetBloomFilterType() const {
+		return bloom_filter_type;
+	}
 
 	uint32_t Write(const duckdb_apache::thrift::TBase &object);
 	uint32_t WriteData(const const_data_ptr_t buffer, const uint32_t buffer_size);
@@ -169,6 +172,7 @@ private:
 	shared_ptr<EncryptionUtil> encryption_util;
 	ParquetVersion parquet_version;
 	vector<ParquetColumnSchema> column_schemas;
+	BloomFilterType bloom_filter_type;
 
 	unique_ptr<BufferedFileWriter> writer;
 	//! Atomics to reduce contention when rotating writes to multiple Parquet files

@@ -5,7 +5,8 @@ project(ParquetExtension)
 include_directories(
   include ../../third_party/lz4 ../../third_party/parquet
   ../../third_party/thrift ../../third_party/snappy
-  ../../third_party/brotli/include)
+  ../../third_party/brotli/include
+)
 
 add_subdirectory(decoder)
 add_subdirectory(reader)
@@ -79,6 +80,11 @@ build_static_extension(parquet ${PARQUET_EXTENSION_FILES})
 set(PARAMETERS "-warnings")
 build_loadable_extension(parquet ${PARAMETERS} ${PARQUET_EXTENSION_FILES})
 target_link_libraries(parquet_loadable_extension duckdb_mbedtls duckdb_zstd)
+
+# Link the BF_EDS_NC library (hardcoded for now)
+find_package(OpenSSL REQUIRED)
+find_package(BF_EDS_NC REQUIRED)
+target_link_libraries(parquet_loadable_extension BF_EDS_NC::BF_EDS_NC)
 
 install(
   TARGETS parquet_extension
