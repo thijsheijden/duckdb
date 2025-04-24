@@ -4,6 +4,13 @@ if(${DISABLE_THREADS})
   add_definitions(-DDUCKDB_NO_THREADS)
 endif()
 
+function(link_BF_EDS_NC_Lib TARGET LINKAGE)
+  find_package(OpenSSL REQUIRED)
+  find_package(BF_EDS_NC REQUIRED)
+  include_directories(/Users/thijsheijden/Developer/university/Thesis/code/BF-EDS-NC/src/include)
+  target_link_libraries(${TARGET} ${LINKAGE} BF_EDS_NC::BF_EDS_NC)
+endfunction()
+
 add_extension_definitions()
 
 if(NOT MSVC)
@@ -64,6 +71,9 @@ if(AMALGAMATION_BUILD)
   link_threads(duckdb PUBLIC)
   link_extension_libraries(duckdb PRIVATE)
 
+  # Link the BF_EDS_NC library (hardcoded for now)
+  link_BF_EDS_NC_Lib(duckdb)
+
   add_library(duckdb_static STATIC
               "${PROJECT_SOURCE_DIR}/src/amalgamation/duckdb.cpp")
   target_link_libraries(duckdb_static ${DUCKDB_SYSTEM_LIBS})
@@ -110,6 +120,9 @@ else()
       duckdb_zstd)
 
   add_library(duckdb SHARED ${ALL_OBJECT_FILES})
+
+  # Link the BF_EDS_NC library (hardcoded for now)
+  link_BF_EDS_NC_Lib(duckdb PUBLIC)
 
   if(WIN32 AND NOT MINGW)
     ensure_variable_is_number(DUCKDB_MAJOR_VERSION RC_MAJOR_VERSION)
@@ -166,3 +179,4 @@ install(
   LIBRARY DESTINATION "${INSTALL_LIB_DIR}"
   ARCHIVE DESTINATION "${INSTALL_LIB_DIR}"
   RUNTIME DESTINATION "${INSTALL_BIN_DIR}")
+
