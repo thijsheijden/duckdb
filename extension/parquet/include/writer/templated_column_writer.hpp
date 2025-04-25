@@ -293,18 +293,18 @@ public:
 
 	binary_interval_trees::range<uint64_t> convertMinMaxStatsToRange(BF_EDS_NC::QueryManager *qm, ColumnWriterStatistics *stats, PhysicalType colType) {
 		switch (colType) {
-		case PhysicalType::UINT64: {
-			auto b = dynamic_cast<NumericStatisticsState<uint64_t, uint64_t, BaseParquetOperator>*>(stats);
-			return {b->GetMinT(), b->GetMaxT()};
-		}
-		case PhysicalType::INT64: {
-			auto b = dynamic_cast<NumericStatisticsState<int64_t, int64_t, BaseParquetOperator>*>(stats);
-			return qm->MapRangeToUint64Range<int64_t>({b->GetMinT(), b->GetMaxT()});
-		}
-		case PhysicalType::VARCHAR: {
-			auto b = dynamic_cast<StringStatisticsState*>(stats);
-			return qm->MapRangeToUint64Range<string>({b->GetMinValue(), b->GetMaxValue()});
-		}
+			case PhysicalType::UINT64: {
+				auto b = dynamic_cast<NumericStatisticsState<uint64_t, uint64_t, BaseParquetOperator>*>(stats);
+				return {b->GetMinT(), b->GetMaxT()};
+			}
+			case PhysicalType::INT64: {
+				auto b = dynamic_cast<NumericStatisticsState<int64_t, int64_t, BaseParquetOperator>*>(stats);
+				return qm->MapRangeToUint64Range<int64_t>({b->GetMinT(), b->GetMaxT()});
+			}
+			case PhysicalType::VARCHAR: {
+				auto b = dynamic_cast<StringStatisticsState*>(stats);
+				return qm->MapRangeToUint64Range<string>({b->GetMinValue(), b->GetMaxValue()});
+			}
 		}
 
 		// By default return entire range
@@ -334,30 +334,27 @@ public:
 		state.dictionary.IterateValues([&](const SRC &src_value, const TGT &tgt_value) {
 			// update the statistics
 			OP::template HandleStats<SRC, TGT>(stats, tgt_value);
-			//			// update the bloom filter
-			//			auto hash = OP::template XXHash64<SRC, TGT>(tgt_value);
-			//			state.bloom_filter->FilterInsert(hash);
 		});
 
-
-		// Insert these two values into a Parquet blocked bloom filter using our library
+		// Create Query Manager
 		BF_EDS_NC::QueryManager qm(ULONG_MAX);
 		qm.GenerateKeys(64);
+
+		// Convert column range to uint64 range
 		auto r = convertMinMaxStatsToRange(&qm, stats, this->Schema().type.InternalType());
+
+		// Create Encrypted Bloom Filter and cast to the created filter type
 		auto EBF = qm.CreateEBF<bloom_filters::BLOCKED_PARQUET>(10, r);
 		auto BBF = reinterpret_cast<bloom_filters::BlockedBloomFilterParquet*>(EBF.get());
 
-		// Somehow copy over the bloom filter bitset
-		// Retrieve the bitset from the bloom filter and convert to a ResizableBuffer, which appears to be a uint8_t array
-		// which buffer.ptr points to the first element
-
-		// Create a new resizeable buffer with the size of our created bloom filter bitset
+		// Create a new resizeable buffer with the size of our created bloom filter bitset and empty it
 		auto bitsetBuffer = make_uniq<ResizeableBuffer>(Allocator::DefaultAllocator(), sizeof(ParquetBloomBlock) * BBF->numBlocks);
 		bitsetBuffer->zero();
 
 		// Copy our bitset data into the resizeable buffer
 		memcpy(bitsetBuffer->ptr, &BBF->blocks[0], sizeof(ParquetBloomBlock) * BBF->numBlocks);
 
+		// Assign created bloom filter to Parquet column metadata
 		state.bloom_filter = make_uniq<ParquetBloomFilter>(std::move(bitsetBuffer));
 	}
 
