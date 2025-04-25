@@ -4025,6 +4025,75 @@ void SplitBlockAlgorithm::printTo(std::ostream& out) const {
   out << ")";
 }
 
+// Encrypted Ranges Bloom Filter Algorithm
+EncryptedRangesAlgorithm::~EncryptedRangesAlgorithm() noexcept {
+}
+
+EncryptedRangesAlgorithm::EncryptedRangesAlgorithm() noexcept {
+}
+std::ostream& operator<<(std::ostream& out, const EncryptedRangesAlgorithm& obj)
+{
+	obj.printTo(out);
+	return out;
+}
+
+
+uint32_t EncryptedRangesAlgorithm::read(::apache::thrift::protocol::TProtocol* iprot) {
+
+	::apache::thrift::protocol::TInputRecursionTracker tracker(*iprot);
+	uint32_t xfer = 0;
+	std::string fname;
+	::apache::thrift::protocol::TType ftype;
+	int16_t fid;
+
+	xfer += iprot->readStructBegin(fname);
+
+	using ::apache::thrift::protocol::TProtocolException;
+
+
+	while (true)
+	{
+		xfer += iprot->readFieldBegin(fname, ftype, fid);
+		if (ftype == ::apache::thrift::protocol::T_STOP) {
+			break;
+		}
+		xfer += iprot->skip(ftype);
+		xfer += iprot->readFieldEnd();
+	}
+
+	xfer += iprot->readStructEnd();
+
+	return xfer;
+}
+
+uint32_t EncryptedRangesAlgorithm::write(::apache::thrift::protocol::TProtocol* oprot) const {
+	uint32_t xfer = 0;
+	::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
+	xfer += oprot->writeStructBegin("EncryptedRangesAlgorithm");
+
+	xfer += oprot->writeFieldStop();
+	xfer += oprot->writeStructEnd();
+	return xfer;
+}
+
+void swap(EncryptedRangesAlgorithm &a, EncryptedRangesAlgorithm &b) {
+	using ::std::swap;
+	(void) a;
+	(void) b;
+}
+
+EncryptedRangesAlgorithm::EncryptedRangesAlgorithm(const EncryptedRangesAlgorithm& other72) noexcept {
+	(void) other72;
+}
+EncryptedRangesAlgorithm& EncryptedRangesAlgorithm::operator=(const EncryptedRangesAlgorithm& other73) noexcept {
+	(void) other73;
+	return *this;
+}
+void EncryptedRangesAlgorithm::printTo(std::ostream& out) const {
+	using ::apache::thrift::to_string;
+	out << "EncryptedRangesAlgorithm(";
+	out << ")";
+}
 
 BloomFilterAlgorithm::~BloomFilterAlgorithm() noexcept {
 }
@@ -4036,6 +4105,12 @@ void BloomFilterAlgorithm::__set_BLOCK(const SplitBlockAlgorithm& val) {
   this->BLOCK = val;
 __isset.BLOCK = true;
 }
+
+void BloomFilterAlgorithm::__set_ENCRYPTED_RANGES(const EncryptedRangesAlgorithm& val) {
+	this->ENCRYPTED_RANGES = val;
+	__isset.ENCRYPTED_RANGES = true;
+}
+
 std::ostream& operator<<(std::ostream& out, const BloomFilterAlgorithm& obj)
 {
   obj.printTo(out);
@@ -4072,6 +4147,14 @@ uint32_t BloomFilterAlgorithm::read(::apache::thrift::protocol::TProtocol* iprot
           xfer += iprot->skip(ftype);
         }
         break;
+	case 2:
+		if (ftype == ::apache::thrift::protocol::T_STRUCT) {
+			xfer += this->ENCRYPTED_RANGES.read(iprot);
+			this->__isset.ENCRYPTED_RANGES = true;
+		} else {
+			xfer += iprot->skip(ftype);
+		}
+		break;
       default:
         xfer += iprot->skip(ftype);
         break;
@@ -4093,6 +4176,11 @@ uint32_t BloomFilterAlgorithm::write(::apache::thrift::protocol::TProtocol* opro
     xfer += oprot->writeFieldBegin("BLOCK", ::apache::thrift::protocol::T_STRUCT, 1);
     xfer += this->BLOCK.write(oprot);
     xfer += oprot->writeFieldEnd();
+  }
+  if (this->__isset.ENCRYPTED_RANGES) {
+	  xfer += oprot->writeFieldBegin("ENCRYPTED_RANGES", ::apache::thrift::protocol::T_STRUCT, 2);
+	  xfer += this->ENCRYPTED_RANGES.write(oprot);
+	  xfer += oprot->writeFieldEnd();
   }
   xfer += oprot->writeFieldStop();
   xfer += oprot->writeStructEnd();
@@ -5301,7 +5389,7 @@ ColumnMetaData::ColumnMetaData() noexcept
      index_page_offset(0),
      dictionary_page_offset(0),
      bloom_filter_offset(0),
-     bloom_filter_length(0) {
+     bloom_filter_length(0), bloom_filter_algorithm(0) {
 }
 
 void ColumnMetaData::__set_type(const Type::type val) {
@@ -5593,6 +5681,13 @@ uint32_t ColumnMetaData::read(::apache::thrift::protocol::TProtocol* iprot) {
           xfer += iprot->skip(ftype);
         }
         break;
+//	  case 18:
+//		  if (ftype == ::apache::thrift::protocol::T_I32) {
+//			  xfer += iprot->readI32(this->bloom_filter_algorithm);
+//			  this->__isset.bloom_filter_algorithm = true;
+//		  } else {
+//			  xfer += iprot->skip(ftype);
+//		  }
       default:
         xfer += iprot->skip(ftype);
         break;
@@ -5730,6 +5825,11 @@ uint32_t ColumnMetaData::write(::apache::thrift::protocol::TProtocol* oprot) con
     xfer += this->size_statistics.write(oprot);
     xfer += oprot->writeFieldEnd();
   }
+//  if (this->__isset.bloom_filter_algorithm) {
+//	  xfer += oprot->writeFieldBegin("bloom_filter_algorithm", ::apache::thrift::protocol::T_I32, 18);
+//	  xfer += oprot->writeI32(this->bloom_filter_algorithm);
+//	  xfer += oprot->writeFieldEnd();
+//  }
   xfer += oprot->writeFieldStop();
   xfer += oprot->writeStructEnd();
   return xfer;
@@ -5752,6 +5852,7 @@ void swap(ColumnMetaData &a, ColumnMetaData &b) {
   swap(a.encoding_stats, b.encoding_stats);
   swap(a.bloom_filter_offset, b.bloom_filter_offset);
   swap(a.bloom_filter_length, b.bloom_filter_length);
+  swap(a.bloom_filter_algorithm, b.bloom_filter_algorithm);
   swap(a.size_statistics, b.size_statistics);
   swap(a.__isset, b.__isset);
 }
@@ -5791,6 +5892,7 @@ ColumnMetaData& ColumnMetaData::operator=(const ColumnMetaData& other125) {
   encoding_stats = other125.encoding_stats;
   bloom_filter_offset = other125.bloom_filter_offset;
   bloom_filter_length = other125.bloom_filter_length;
+  bloom_filter_algorithm = other125.bloom_filter_algorithm;
   size_statistics = other125.size_statistics;
   __isset = other125.__isset;
   return *this;
@@ -5813,6 +5915,7 @@ void ColumnMetaData::printTo(std::ostream& out) const {
   out << ", " << "encoding_stats="; (__isset.encoding_stats ? (out << to_string(encoding_stats)) : (out << "<null>"));
   out << ", " << "bloom_filter_offset="; (__isset.bloom_filter_offset ? (out << to_string(bloom_filter_offset)) : (out << "<null>"));
   out << ", " << "bloom_filter_length="; (__isset.bloom_filter_length ? (out << to_string(bloom_filter_length)) : (out << "<null>"));
+  out << ", " << "bloom_filter_algorithm="; (__isset.bloom_filter_algorithm ? (out << to_string(bloom_filter_algorithm)) : (out << "<null>"));
   out << ", " << "size_statistics="; (__isset.size_statistics ? (out << to_string(size_statistics)) : (out << "<null>"));
   out << ")";
 }

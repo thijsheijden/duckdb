@@ -195,6 +195,9 @@ void ParquetMetaDataOperatorData::BindMetaData(vector<LogicalType> &return_types
 	names.emplace_back("bloom_filter_length");
 	return_types.emplace_back(LogicalType::BIGINT);
 
+	names.emplace_back("bloom_filter_algorithm");
+	return_types.emplace_back(LogicalType::VARCHAR);
+
 	names.emplace_back("min_is_exact");
 	return_types.emplace_back(LogicalType::BOOLEAN);
 
@@ -341,6 +344,10 @@ void ParquetMetaDataOperatorData::LoadRowGroupMetadata(ClientContext &context, c
 			// bloom_filter_length, LogicalType::BIGINT
 			current_chunk.SetValue(
 			    25, count, ParquetElementBigint(col_meta.bloom_filter_length, col_meta.__isset.bloom_filter_length));
+
+			// bloom_filter_algorithm, LogicalType::VARCHAR
+//			current_chunk.SetValue(
+//				25, count, ParquetElementBigint(col_meta., col_meta.__isset.bloom_filter_length));
 
 			// min_is_exact, LogicalType::BOOLEAN
 			current_chunk.SetValue(26, count,

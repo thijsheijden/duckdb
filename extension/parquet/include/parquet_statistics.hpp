@@ -14,6 +14,7 @@
 #endif
 #include "parquet_types.h"
 #include "resizable_buffer.hpp"
+#include "custom_bloom_filters.hpp"
 
 namespace duckdb {
 
@@ -49,12 +50,13 @@ class ParquetBloomFilter {
 
 public:
 	ParquetBloomFilter(idx_t num_entries, double bloom_filter_false_positive_ratio);
-	ParquetBloomFilter(unique_ptr<ResizeableBuffer> data_p);
+	ParquetBloomFilter(unique_ptr<ResizeableBuffer> data_p, BloomFilterType type_p = BloomFilterType::REGULAR);
 	void FilterInsert(uint64_t x);
 	bool FilterCheck(uint64_t x);
 	void Shrink(idx_t new_block_count);
 	double OneRatio();
 	ResizeableBuffer *Get();
+	BloomFilterType type = BloomFilterType::REGULAR; // The type of the bloom filter
 
 private:
 	unique_ptr<ResizeableBuffer> data;

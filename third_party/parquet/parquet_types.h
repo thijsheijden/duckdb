@@ -1554,9 +1554,32 @@ void swap(SplitBlockAlgorithm &a, SplitBlockAlgorithm &b);
 
 std::ostream& operator<<(std::ostream& out, const SplitBlockAlgorithm& obj);
 
+/**
+ * Bloom Filter Encrypted Ranges Algorithm.
+ */
+class EncryptedRangesAlgorithm: public virtual ::apache::thrift::TBase {
+public:
+
+	EncryptedRangesAlgorithm(const EncryptedRangesAlgorithm&) noexcept;
+	EncryptedRangesAlgorithm& operator=(const EncryptedRangesAlgorithm&) noexcept;
+	EncryptedRangesAlgorithm() noexcept;
+
+	virtual ~EncryptedRangesAlgorithm() noexcept;
+
+	uint32_t read(::apache::thrift::protocol::TProtocol* iprot) override;
+	uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const override;
+
+	virtual void printTo(std::ostream& out) const;
+};
+
+void swap(EncryptedRangesAlgorithm &a, EncryptedRangesAlgorithm &b);
+
+std::ostream& operator<<(std::ostream& out, const EncryptedRangesAlgorithm& obj);
+
 typedef struct _BloomFilterAlgorithm__isset {
-  _BloomFilterAlgorithm__isset() : BLOCK(false) {}
-  bool BLOCK :1;
+	_BloomFilterAlgorithm__isset() : BLOCK(false), ENCRYPTED_RANGES(false) {}
+	bool BLOCK : 1;
+	bool ENCRYPTED_RANGES : 1;
 } _BloomFilterAlgorithm__isset;
 
 /**
@@ -1574,10 +1597,12 @@ class BloomFilterAlgorithm : public virtual ::apache::thrift::TBase {
    * Block-based Bloom filter. *
    */
   SplitBlockAlgorithm BLOCK;
+  EncryptedRangesAlgorithm ENCRYPTED_RANGES;
 
   _BloomFilterAlgorithm__isset __isset;
 
   void __set_BLOCK(const SplitBlockAlgorithm& val);
+  void __set_ENCRYPTED_RANGES(const EncryptedRangesAlgorithm& val);
 
   uint32_t read(::apache::thrift::protocol::TProtocol* iprot) override;
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const override;
@@ -1959,7 +1984,7 @@ void swap(PageEncodingStats &a, PageEncodingStats &b);
 std::ostream& operator<<(std::ostream& out, const PageEncodingStats& obj);
 
 typedef struct _ColumnMetaData__isset {
-  _ColumnMetaData__isset() : key_value_metadata(false), index_page_offset(false), dictionary_page_offset(false), statistics(false), encoding_stats(false), bloom_filter_offset(false), bloom_filter_length(false), size_statistics(false) {}
+  _ColumnMetaData__isset() : key_value_metadata(false), index_page_offset(false), dictionary_page_offset(false), statistics(false), encoding_stats(false), bloom_filter_offset(false), bloom_filter_length(false), size_statistics(false), bloom_filter_algorithm(false) {}
   bool key_value_metadata :1;
   bool index_page_offset :1;
   bool dictionary_page_offset :1;
@@ -1968,6 +1993,7 @@ typedef struct _ColumnMetaData__isset {
   bool bloom_filter_offset :1;
   bool bloom_filter_length :1;
   bool size_statistics :1;
+  bool bloom_filter_algorithm :1;
 } _ColumnMetaData__isset;
 
 /**
@@ -2060,6 +2086,10 @@ class ColumnMetaData : public virtual ::apache::thrift::TBase {
    * filter pushdown.
    */
   SizeStatistics size_statistics;
+  /**
+   * The algorithm the bloom filter uses.
+   */
+  int32_t bloom_filter_algorithm;
 
   _ColumnMetaData__isset __isset;
 

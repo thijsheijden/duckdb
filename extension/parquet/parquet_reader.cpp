@@ -996,6 +996,8 @@ void ParquetReader::PrepareRowGroupBuffer(ParquetReaderScanState &state, idx_t i
 		if (stats && filter_entry != filters->filters.end()) {
 			auto &filter = *filter_entry->second;
 
+			// TODO: Skip this min/max pruning if the file is 'encrypted'
+
 			FilterPropagateResult prune_result;
 			bool is_generated_column = column_reader.ColumnIndex() >= group.columns.size();
 			bool is_column = column_reader.Schema().schema_type == ParquetColumnSchemaType::COLUMN;
