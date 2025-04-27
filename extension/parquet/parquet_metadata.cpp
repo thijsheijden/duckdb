@@ -195,8 +195,8 @@ void ParquetMetaDataOperatorData::BindMetaData(vector<LogicalType> &return_types
 	names.emplace_back("bloom_filter_length");
 	return_types.emplace_back(LogicalType::BIGINT);
 
-	names.emplace_back("bloom_filter_algorithm");
-	return_types.emplace_back(LogicalType::VARCHAR);
+//	names.emplace_back("bloom_filter_algorithm");
+//	return_types.emplace_back(LogicalType::VARCHAR);
 
 	names.emplace_back("min_is_exact");
 	return_types.emplace_back(LogicalType::BOOLEAN);

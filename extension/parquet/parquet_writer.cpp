@@ -865,8 +865,8 @@ void ParquetWriter::Finalize() {
 		column_chunk.meta_data.bloom_filter_length =
 		    NumericCast<int32_t>(bloom_filter_header_size + bloom_filter_bytes->len);
 
-		column_chunk.meta_data.bloom_filter_algorithm = NumericCast<int32_t>(bloom_filter_entry.bloom_filter.get()->type);
-		column_chunk.meta_data.__isset.bloom_filter_algorithm = true;
+//		column_chunk.meta_data.bloom_filter_algorithm = NumericCast<int32_t>(bloom_filter_entry.bloom_filter.get()->type);
+//		column_chunk.meta_data.__isset.bloom_filter_algorithm = true;
 	}
 
 	const auto metadata_start_offset = writer->GetTotalWritten();

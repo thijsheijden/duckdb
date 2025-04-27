@@ -5389,7 +5389,7 @@ ColumnMetaData::ColumnMetaData() noexcept
      index_page_offset(0),
      dictionary_page_offset(0),
      bloom_filter_offset(0),
-     bloom_filter_length(0), bloom_filter_algorithm(0) {
+     bloom_filter_length(0) {
 }
 
 void ColumnMetaData::__set_type(const Type::type val) {
@@ -5852,7 +5852,7 @@ void swap(ColumnMetaData &a, ColumnMetaData &b) {
   swap(a.encoding_stats, b.encoding_stats);
   swap(a.bloom_filter_offset, b.bloom_filter_offset);
   swap(a.bloom_filter_length, b.bloom_filter_length);
-  swap(a.bloom_filter_algorithm, b.bloom_filter_algorithm);
+//  swap(a.bloom_filter_algorithm, b.bloom_filter_algorithm);
   swap(a.size_statistics, b.size_statistics);
   swap(a.__isset, b.__isset);
 }
@@ -5892,7 +5892,7 @@ ColumnMetaData& ColumnMetaData::operator=(const ColumnMetaData& other125) {
   encoding_stats = other125.encoding_stats;
   bloom_filter_offset = other125.bloom_filter_offset;
   bloom_filter_length = other125.bloom_filter_length;
-  bloom_filter_algorithm = other125.bloom_filter_algorithm;
+//  bloom_filter_algorithm = other125.bloom_filter_algorithm;
   size_statistics = other125.size_statistics;
   __isset = other125.__isset;
   return *this;
@@ -5915,7 +5915,7 @@ void ColumnMetaData::printTo(std::ostream& out) const {
   out << ", " << "encoding_stats="; (__isset.encoding_stats ? (out << to_string(encoding_stats)) : (out << "<null>"));
   out << ", " << "bloom_filter_offset="; (__isset.bloom_filter_offset ? (out << to_string(bloom_filter_offset)) : (out << "<null>"));
   out << ", " << "bloom_filter_length="; (__isset.bloom_filter_length ? (out << to_string(bloom_filter_length)) : (out << "<null>"));
-  out << ", " << "bloom_filter_algorithm="; (__isset.bloom_filter_algorithm ? (out << to_string(bloom_filter_algorithm)) : (out << "<null>"));
+//  out << ", " << "bloom_filter_algorithm="; (__isset.bloom_filter_algorithm ? (out << to_string(bloom_filter_algorithm)) : (out << "<null>"));
   out << ", " << "size_statistics="; (__isset.size_statistics ? (out << to_string(size_statistics)) : (out << "<null>"));
   out << ")";
 }

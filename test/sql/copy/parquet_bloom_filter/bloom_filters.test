@@ -5,9 +5,15 @@ require parquet
 
 statement ok
 COPY (
-  SELECT i::UBIGINT
-  FROM range(100) tbl(i)
+	SELECT r1.range::UBIGINT r
+	FROM range(100) r1
 ) TO '__TEST_DIR__/bloom1.parquet' (FORMAT parquet, ROW_GROUP_SIZE 10000, BLOOM_FILTER_TYPE encrypted_ranges);
+
+statement ok
+FROM '__TEST_DIR__/bloom1.parquet' SELECT * WHERE r BETWEEN 10 AND 12;
+
+statement ok
+FROM '__TEST_DIR__/bloom1.parquet' SELECT * WHERE r BETWEEN 1000 AND 5000;
 
 statement ok
 copy (select

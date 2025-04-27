@@ -261,7 +261,8 @@ void PrimitiveColumnWriter::SetParquetStatistics(PrimitiveColumnWriterState &sta
 		column_chunk.meta_data.__isset.statistics = true;
 	}
 	// if we have NaN values - don't write the min/max here
-	if (!state.stats_state->HasNaN()) {
+	// Only write these stats if we have a regular bloom filter, this prevents encrypted bloom filter queries from terminating early
+	if (!state.stats_state->HasNaN() && (state.bloom_filter != nullptr && state.bloom_filter->type == BloomFilterType::REGULAR)) {
 		// set min/max/min_value/max_value
 		// this code is not going to win any beauty contests, but well
 		auto min = state.stats_state->GetMin();

@@ -1003,7 +1003,9 @@ void ParquetReader::PrepareRowGroupBuffer(ParquetReaderScanState &state, idx_t i
 			bool is_column = column_reader.Schema().schema_type == ParquetColumnSchemaType::COLUMN;
 			bool is_expression = column_reader.Schema().schema_type == ParquetColumnSchemaType::EXPRESSION;
 			bool has_min_max = false;
-			if (!is_generated_column) {
+			// TODO: Update based on bloom filter header to determine whether to load min/max statistics? We want to force
+			// the DB to use our bloom filter, and not use the min/max statistics
+			if (!is_generated_column && false) {
 				has_min_max = group.columns[column_reader.ColumnIndex()].meta_data.statistics.__isset.min_value &&
 				              group.columns[column_reader.ColumnIndex()].meta_data.statistics.__isset.max_value;
 			}
@@ -1024,9 +1026,10 @@ void ParquetReader::PrepareRowGroupBuffer(ParquetReaderScanState &state, idx_t i
 				// based on nan
 				prune_result = CheckParquetFloatFilter(
 				    column_reader, group.columns[column_reader.ColumnIndex()].meta_data.statistics, filter);
-			} else {
-				prune_result = filter.CheckStatistics(*stats);
 			}
+//			else {
+//				prune_result = filter.CheckStatistics(*stats);
+//			}
 			// check the bloom filter if present
 			if (prune_result == FilterPropagateResult::NO_PRUNING_POSSIBLE && !column_reader.Type().IsNested() &&
 			    is_column && ParquetStatisticsUtils::BloomFilterSupported(column_reader.Type().id()) &&

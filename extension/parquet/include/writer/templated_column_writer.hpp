@@ -17,6 +17,7 @@
 
 #include "BF_EDS_NC/include/query_manager.hpp"
 #include "BF_EDS_NC/include/bloom_filter/256_bit_blocked_bloom_filter.hpp"
+#include "BF_EDS_NC/include/private/seeding/keys.hpp"
 
 namespace duckdb {
 
@@ -338,7 +339,7 @@ public:
 
 		// Create Query Manager
 		BF_EDS_NC::QueryManager qm(ULONG_MAX);
-		qm.GenerateKeys(64);
+		qm.LoadKeys(seeds::keys_64_bit[0], seeds::keys_64_bit[1]);
 
 		// Convert column range to uint64 range
 		auto r = convertMinMaxStatsToRange(&qm, stats, this->Schema().type.InternalType());
@@ -355,7 +356,7 @@ public:
 		memcpy(bitsetBuffer->ptr, &BBF->blocks[0], sizeof(ParquetBloomBlock) * BBF->numBlocks);
 
 		// Assign created bloom filter to Parquet column metadata
-		state.bloom_filter = make_uniq<ParquetBloomFilter>(std::move(bitsetBuffer));
+		state.bloom_filter = make_uniq<ParquetBloomFilter>(std::move(bitsetBuffer), BloomFilterType::ENCRYPTED_RANGES);
 	}
 
 	void FlushDictionary(PrimitiveColumnWriterState &state_p, ColumnWriterStatistics *stats) override {

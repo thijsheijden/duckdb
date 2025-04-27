@@ -18,6 +18,9 @@
 #include "reader/uuid_column_reader.hpp"
 #endif
 
+#include "BF_EDS_NC/include/query_manager.hpp"
+#include "BF_EDS_NC/include/private/seeding/keys.hpp"
+
 namespace duckdb {
 
 using duckdb_parquet::ConvertedType;
@@ -472,6 +475,63 @@ static uint64_t ValueXXH64(const Value &constant) {
 	}
 }
 
+static bool ApplyEncryptedRangesBloomFilter(const TableFilter &duckdb_filter, ParquetBloomFilter &bloom_filter) {
+	switch (duckdb_filter.filter_type) {
+	case TableFilterType::CONSTANT_COMPARISON: {
+		// TODO: Use this filter to compare constant ranges, i.e. just one > or <
+		auto &constant_filter = duckdb_filter.Cast<ConstantFilter>();
+		auto is_compare_equal = constant_filter.comparison_type == ExpressionType::COMPARE_EQUAL;
+		D_ASSERT(!constant_filter.constant.IsNull());
+		auto hash = ValueXXH64(constant_filter.constant);
+		return hash > 0 && !bloom_filter.FilterCheck(hash) && is_compare_equal;
+	}
+	case TableFilterType::CONJUNCTION_AND: {
+		// BETWEEN operator gets cast to this
+		auto &conjunction_and_filter = duckdb_filter.Cast<ConjunctionAndFilter>();
+
+		binary_interval_trees::range<uint64_t> r{};
+		for (auto &child_filter : conjunction_and_filter.child_filters) {
+			auto f = reinterpret_cast<ConstantFilter*>(child_filter.get());
+			if (f->comparison_type == ExpressionType::COMPARE_LESSTHANOREQUALTO) {
+				r.max = f->constant.GetValue<uint64_t>();
+			} else if (f->comparison_type == ExpressionType::COMPARE_GREATERTHANOREQUALTO) {
+				r.min = f->constant.GetValue<uint64_t>();
+			}
+		}
+
+		// TODO: Create query token for this range
+		BF_EDS_NC::QueryManager qm(ULLONG_MAX);
+		qm.LoadKeys(seeds::keys_64_bit[0], seeds::keys_64_bit[1]);
+		auto tok = qm.CreateQueryToken<bloom_filters::BLOCKED_PARQUET>(r);
+
+		// TODO: Query the bloom filter using this token
+		int intersections = 0;
+		for (auto const& t : tok.tokens) {
+			if (bloom_filter.FilterCheck(t.hash)) {
+				intersections++;
+			}
+		}
+		if (intersections >= 2) {
+			return false;
+		}
+
+		// Not at least two intersections -> Bloom filter does not contain query range
+		return true;
+	}
+	case TableFilterType::CONJUNCTION_OR: {
+		auto &conjunction_or_filter = duckdb_filter.Cast<ConjunctionOrFilter>();
+		bool all_children_true = true;
+		for (auto &child_filter : conjunction_or_filter.child_filters) {
+			all_children_true &= ApplyEncryptedRangesBloomFilter(*child_filter, bloom_filter);
+		}
+		return all_children_true;
+	}
+	default:
+		return false;
+	}
+	return false;
+}
+
 static bool ApplyBloomFilter(const TableFilter &duckdb_filter, ParquetBloomFilter &bloom_filter) {
 	switch (duckdb_filter.filter_type) {
 	case TableFilterType::CONSTANT_COMPARISON: {
@@ -525,10 +585,12 @@ bool ParquetStatisticsUtils::BloomFilterSupported(const LogicalTypeId &type_id) 
 bool ParquetStatisticsUtils::BloomFilterExcludes(const TableFilter &duckdb_filter,
                                                  const duckdb_parquet::ColumnMetaData &column_meta_data,
                                                  TProtocol &file_proto, Allocator &allocator) {
-	if (!HasFilterConstants(duckdb_filter) || !column_meta_data.__isset.bloom_filter_offset ||
-	    column_meta_data.bloom_filter_offset <= 0) {
-		return false;
-	}
+	// TODO: Need to find a way to set this metadata, but does not work as then the total number of bytes metadata does
+	// not work anymore...
+//	if ((static_cast<BloomFilterType>(column_meta_data.bloom_filter_algorithm) == BloomFilterType::REGULAR && !HasFilterConstants(duckdb_filter)) ||
+//	    !column_meta_data.__isset.bloom_filter_offset || column_meta_data.bloom_filter_offset <= 0) {
+//		return false;
+//	}
 	// TODO check length against file length!
 
 	auto &transport = reinterpret_cast<ThriftFileTransport &>(*file_proto.getTransport());
@@ -540,15 +602,24 @@ bool ParquetStatisticsUtils::BloomFilterExcludes(const TableFilter &duckdb_filte
 	duckdb_parquet::BloomFilterHeader filter_header;
 	// TODO the bloom filter could be encrypted, too, so need to double check that this is NOT the case
 	filter_header.read(&file_proto);
-	if (!filter_header.algorithm.__isset.BLOCK || !filter_header.compression.__isset.UNCOMPRESSED ||
-	    !filter_header.hash.__isset.XXHASH) {
-		return false;
+	if (filter_header.algorithm.__isset.ENCRYPTED_RANGES) {
+		// TODO: Implement our own logic here
+		auto new_buffer = make_uniq<ResizeableBuffer>(allocator, filter_header.numBytes);
+		transport.read(new_buffer->ptr, filter_header.numBytes);
+		ParquetBloomFilter bloom_filter(std::move(new_buffer));
+		return ApplyEncryptedRangesBloomFilter(duckdb_filter, bloom_filter);
+	} else if (filter_header.algorithm.__isset.BLOCK) {
+		if (!filter_header.compression.__isset.UNCOMPRESSED || !filter_header.hash.__isset.XXHASH) {
+			return false;
+		}
+
+		auto new_buffer = make_uniq<ResizeableBuffer>(allocator, filter_header.numBytes);
+		transport.read(new_buffer->ptr, filter_header.numBytes);
+		ParquetBloomFilter bloom_filter(std::move(new_buffer));
+		return ApplyBloomFilter(duckdb_filter, bloom_filter);
 	}
 
-	auto new_buffer = make_uniq<ResizeableBuffer>(allocator, filter_header.numBytes);
-	transport.read(new_buffer->ptr, filter_header.numBytes);
-	ParquetBloomFilter bloom_filter(std::move(new_buffer));
-	return ApplyBloomFilter(duckdb_filter, bloom_filter);
+	return false;
 }
 
 ParquetBloomFilter::ParquetBloomFilter(idx_t num_entries, double bloom_filter_false_positive_ratio) {
@@ -569,10 +640,11 @@ ParquetBloomFilter::ParquetBloomFilter(idx_t num_entries, double bloom_filter_fa
 	D_ASSERT(data->len % sizeof(ParquetBloomBlock) == 0);
 }
 
-ParquetBloomFilter::ParquetBloomFilter(unique_ptr<ResizeableBuffer> data_p) {
+ParquetBloomFilter::ParquetBloomFilter(unique_ptr<ResizeableBuffer> data_p, BloomFilterType type_p) {
 	D_ASSERT(data_p->len % sizeof(ParquetBloomBlock) == 0);
 	data = std::move(data_p);
 	block_count = data->len / sizeof(ParquetBloomBlock);
+	type = type_p;
 	D_ASSERT(data->len % sizeof(ParquetBloomBlock) == 0);
 }
 
