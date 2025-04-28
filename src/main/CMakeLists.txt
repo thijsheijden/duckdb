@@ -7,6 +7,7 @@ add_subdirectory(secret)
 add_subdirectory(settings)
 add_subdirectory(buffered_data)
 add_subdirectory(chunk_scan_state)
+add_subdirectory(bf_eds)
 
 if(FORCE_QUERY_LOG)
   add_definitions(-DDUCKDB_FORCE_QUERY_LOG="\""${FORCE_QUERY_LOG}"\"")
@@ -47,3 +48,5 @@ add_library_unity(
 set(ALL_OBJECT_FILES
     ${ALL_OBJECT_FILES} $<TARGET_OBJECTS:duckdb_main>
     PARENT_SCOPE)
+
+link_BF_EDS_NC_Lib(duckdb_main PUBLIC)

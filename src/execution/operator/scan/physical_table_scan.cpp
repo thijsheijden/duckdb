@@ -4,6 +4,8 @@
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/planner/expression/bound_conjunction_expression.hpp"
 #include "duckdb/transaction/transaction.hpp"
+#include "duckdb/bf_eds/bf_eds.hpp"
+#include "duckdb/planner/filter/constant_filter.hpp"
 
 #include <utility>
 
@@ -99,7 +101,26 @@ SourceResultType PhysicalTableScan::GetData(ExecutionContext &context, DataChunk
 	auto &g_state = input.global_state.Cast<TableScanGlobalSourceState>();
 	auto &l_state = input.local_state.Cast<TableScanLocalSourceState>();
 
+	if (this->table_filters != nullptr) {
+		if (this->table_filters.get()->filters[0]->filter_type == TableFilterType::CONJUNCTION_AND) {
+			binary_interval_trees::range<uint64_t> r {};
+			for (auto &child_filter : reinterpret_cast<ConjunctionFilter*>(this->table_filters.get()->filters[0].get())->child_filters) {
+				auto f = reinterpret_cast<ConstantFilter *>(child_filter.get());
+				if (f->comparison_type == ExpressionType::COMPARE_LESSTHANOREQUALTO) {
+					r.max = f->constant.GetValue<uint64_t>();
+				} else if (f->comparison_type == ExpressionType::COMPARE_GREATERTHANOREQUALTO) {
+					r.min = f->constant.GetValue<uint64_t>();
+				}
+			}
+
+			// Create query token using the filters
+			BFEDSConfig::GetInstance()->query_token = BFEDSConfig::GetInstance()->qm.CreateQueryToken<bloom_filters::BLOCKED_PARQUET>(r);
+		}
+	}
+
 	TableFunctionInput data(bind_data.get(), l_state.local_state.get(), g_state.global_state.get());
+
+
 
 	if (function.function) {
 		function.function(context.client, data, chunk);

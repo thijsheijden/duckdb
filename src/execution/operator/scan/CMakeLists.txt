@@ -10,3 +10,5 @@ add_library_unity(
 set(ALL_OBJECT_FILES
     ${ALL_OBJECT_FILES} $<TARGET_OBJECTS:duckdb_operator_scan>
     PARENT_SCOPE)
+
+link_BF_EDS_NC_Lib(duckdb_operator_scan PUBLIC)

@@ -14,10 +14,10 @@
 #include "parquet_dlba_encoder.hpp"
 #include "parquet_rle_bp_encoder.hpp"
 #include "duckdb/common/primitive_dictionary.hpp"
+#include "duckdb/bf_eds/bf_eds.hpp"
 
 #include "BF_EDS_NC/include/query_manager.hpp"
-#include "BF_EDS_NC/include/bloom_filter/256_bit_blocked_bloom_filter.hpp"
-#include "BF_EDS_NC/include/private/seeding/keys.hpp"
+#include <include/bloom_filter/256_bit_blocked_bloom_filter.hpp>
 
 namespace duckdb {
 
@@ -337,9 +337,8 @@ public:
 			OP::template HandleStats<SRC, TGT>(stats, tgt_value);
 		});
 
-		// Create Query Manager
-		BF_EDS_NC::QueryManager qm(ULONG_MAX);
-		qm.LoadKeys(seeds::keys_64_bit[0], seeds::keys_64_bit[1]);
+		// Get global query manager
+		auto& qm = BFEDSConfig::GetInstance()->qm;
 
 		// Convert column range to uint64 range
 		auto r = convertMinMaxStatsToRange(&qm, stats, this->Schema().type.InternalType());

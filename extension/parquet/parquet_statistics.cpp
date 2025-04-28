@@ -18,8 +18,7 @@
 #include "reader/uuid_column_reader.hpp"
 #endif
 
-#include "BF_EDS_NC/include/query_manager.hpp"
-#include "BF_EDS_NC/include/private/seeding/keys.hpp"
+#include "duckdb/bf_eds/bf_eds.hpp"
 
 namespace duckdb {
 
@@ -489,24 +488,8 @@ static bool ApplyEncryptedRangesBloomFilter(const TableFilter &duckdb_filter, Pa
 		// BETWEEN operator gets cast to this
 		auto &conjunction_and_filter = duckdb_filter.Cast<ConjunctionAndFilter>();
 
-		binary_interval_trees::range<uint64_t> r{};
-		for (auto &child_filter : conjunction_and_filter.child_filters) {
-			auto f = reinterpret_cast<ConstantFilter*>(child_filter.get());
-			if (f->comparison_type == ExpressionType::COMPARE_LESSTHANOREQUALTO) {
-				r.max = f->constant.GetValue<uint64_t>();
-			} else if (f->comparison_type == ExpressionType::COMPARE_GREATERTHANOREQUALTO) {
-				r.min = f->constant.GetValue<uint64_t>();
-			}
-		}
-
-		// TODO: Create query token for this range
-		BF_EDS_NC::QueryManager qm(ULLONG_MAX);
-		qm.LoadKeys(seeds::keys_64_bit[0], seeds::keys_64_bit[1]);
-		auto tok = qm.CreateQueryToken<bloom_filters::BLOCKED_PARQUET>(r);
-
-		// TODO: Query the bloom filter using this token
 		int intersections = 0;
-		for (auto const& t : tok.tokens) {
+		for (auto const& t : BFEDSConfig::GetInstance()->query_token.tokens) {
 			if (bloom_filter.FilterCheck(t.hash)) {
 				intersections++;
 			}
