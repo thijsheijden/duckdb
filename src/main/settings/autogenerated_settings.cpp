@@ -1149,4 +1149,20 @@ Value ZstdMinStringLengthSetting::GetSetting(const ClientContext &context) {
 	return Value::UBIGINT(config.options.zstd_min_string_length);
 }
 
+//===----------------------------------------------------------------------===//
+// Encrypted Bloom Filters
+//===----------------------------------------------------------------------===//
+void UseEncryptedBloomFiltersSetting::SetGlobal(DatabaseInstance *db, DBConfig &config, const Value &input) {
+	config.options.use_encrypted_bloom_filters = input.GetValue<bool>();
+}
+
+void UseEncryptedBloomFiltersSetting::ResetGlobal(DatabaseInstance *db, DBConfig &config) {
+	config.options.use_encrypted_bloom_filters = DBConfig().options.use_encrypted_bloom_filters;
+}
+
+Value UseEncryptedBloomFiltersSetting::GetSetting(const ClientContext &context) {
+	auto &config = DBConfig::GetConfig(context);
+	return Value::BOOLEAN(config.options.use_encrypted_bloom_filters);
+}
+
 } // namespace duckdb

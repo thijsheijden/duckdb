@@ -1237,6 +1237,16 @@ struct ZstdMinStringLengthSetting {
 	static Value GetSetting(const ClientContext &context);
 };
 
+struct UseEncryptedBloomFiltersSetting {
+	using RETURN_TYPE = bool;
+	static constexpr const char *Name = "use_encrypted_bloom_filters";
+	static constexpr const char *Description = "Whether to use encrypted range bloom filters.";
+	static constexpr const char *InputType = "BOOLEAN";
+	static void SetGlobal(DatabaseInstance *db, DBConfig &config, const Value &parameter);
+	static void ResetGlobal(DatabaseInstance *db, DBConfig &config);
+	static Value GetSetting(const ClientContext &context);
+};
+
 //===----------------------------------------------------------------------===//
 // End of the auto-generated list of settings structures
 //===--------------------------------------------------------------------===//
