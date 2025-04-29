@@ -101,8 +101,9 @@ SourceResultType PhysicalTableScan::GetData(ExecutionContext &context, DataChunk
 	auto &g_state = input.global_state.Cast<TableScanGlobalSourceState>();
 	auto &l_state = input.local_state.Cast<TableScanLocalSourceState>();
 
-	if (this->table_filters != nullptr) {
-		if (this->table_filters.get()->filters[0]->filter_type == TableFilterType::CONJUNCTION_AND) {
+	if (BFEDSConfig::GetInstance()->use_encrypted_bloom_filters && this->table_filters != nullptr) {
+		auto filter_type = this->table_filters.get()->filters[0]->filter_type;
+		if (filter_type == TableFilterType::CONJUNCTION_AND) { // Not sure whether OR conjunction would also work/should be supported
 			binary_interval_trees::range<uint64_t> r {};
 			for (auto &child_filter : reinterpret_cast<ConjunctionFilter*>(this->table_filters.get()->filters[0].get())->child_filters) {
 				auto f = reinterpret_cast<ConstantFilter *>(child_filter.get());
@@ -119,8 +120,6 @@ SourceResultType PhysicalTableScan::GetData(ExecutionContext &context, DataChunk
 	}
 
 	TableFunctionInput data(bind_data.get(), l_state.local_state.get(), g_state.global_state.get());
-
-
 
 	if (function.function) {
 		function.function(context.client, data, chunk);

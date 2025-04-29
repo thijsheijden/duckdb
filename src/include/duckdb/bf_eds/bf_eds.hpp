@@ -24,5 +24,8 @@ namespace duckdb {
 
 	    //! Current query token, this is not safe as parallel reads can overwrite this token, but whatever
 	    BF_EDS_NC::QueryToken query_token{};
+
+	    //! Whether to use encrypted bloom filters
+		bool use_encrypted_bloom_filters = false;
 	};
 }

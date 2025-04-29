@@ -44,6 +44,8 @@
 #include "duckdb/transaction/transaction_context.hpp"
 #include "duckdb/transaction/transaction_manager.hpp"
 
+#include "duckdb/bf_eds/bf_eds.hpp"
+
 namespace duckdb {
 
 struct ActiveQueryContext {
@@ -947,6 +949,9 @@ unique_ptr<QueryResult> ClientContext::Query(unique_ptr<SQLStatement> statement,
 
 unique_ptr<QueryResult> ClientContext::Query(const string &query, bool allow_stream_result) {
 	auto lock = LockContext();
+
+	// Update whether encrypted bloom filters are used
+	BFEDSConfig::GetInstance()->use_encrypted_bloom_filters = this->db.get()->config.options.use_encrypted_bloom_filters;
 
 	ErrorData error;
 	vector<unique_ptr<SQLStatement>> statements;
